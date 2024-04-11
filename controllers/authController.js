@@ -37,10 +37,10 @@ const signup = async (req, res) => {
     const token = createToken(user._id);
 
     res.cookie("token", token, { maxAge: maxAge * 1000 });
-    res.status(201).json({ user: user.email });
+    res.status(201).json({ user: user.email, token });
   } catch (err) {
     const errors = handleErrors(err);
-    res.status(400).json(errors);
+    res.status(400).json({ errors });
   }
 };
 

@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 
 const requireAuth = (req, res, next) => {
-  const { token } = req.cookies;
+  const token = req.header("Auth-token");
 
   if (token) {
     jwt.verify(token, "codemix project secret", (err, decodedToken) => {
