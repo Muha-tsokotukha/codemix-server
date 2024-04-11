@@ -12,7 +12,7 @@ app.use(cookieParser());
 
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => app.listen(3000))
+  .then(() => app.listen(5000))
   .catch((err) => console.log(err));
 
 app.use(authRoutes);
