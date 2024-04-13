@@ -14,4 +14,8 @@ router.post("/openai/message", openaiController.sendMessageNewBot);
 
 router.get("/openai/chats", openaiController.getChatList);
 
+router.get("/openai/chats/:chatId", openaiController.getChatMessages);
+
+router.post("/openai/message/:chatId", openaiController.appendMessageToChat);
+
 module.exports = router;
