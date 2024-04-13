@@ -37,7 +37,7 @@ const signup = async (req, res) => {
     const token = createToken(user._id);
 
     res.cookie("token", token, { maxAge: maxAge * 1000 });
-    res.status(201).json({ user: user.email, token });
+    res.status(201).json({ user: { name: user.name, id: user._id }, token });
   } catch (err) {
     const errors = handleErrors(err);
     res.status(400).json({ errors });
@@ -52,7 +52,7 @@ const login = async (req, res) => {
     const token = createToken(user._id);
 
     res.cookie("token", token, { maxAge: maxAge * 1000 });
-    res.status(200).json({ user: user._id, token });
+    res.status(200).json({ user: { id: user._id, name: user.name }, token });
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
