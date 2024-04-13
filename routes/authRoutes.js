@@ -12,4 +12,6 @@ router.get("/logout", authcontroller.logout);
 
 router.post("/openai/message", openaiController.sendMessageNewBot);
 
+router.get("/openai/chats", openaiController.getChatList);
+
 module.exports = router;

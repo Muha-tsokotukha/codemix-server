@@ -35,4 +35,26 @@ async function sendMessageNewBot(req, res) {
   }
 }
 
-module.exports = { sendMessageNewBot };
+async function getChatList(req, res) {
+  try {
+    const userId = req.query.userId;
+    const chatList = await ChatBot.aggregate([
+      { $match: { userId } },
+      {
+        $project: {
+          title: 1,
+          id: 1,
+          userId: 1,
+          lastMessage: { $arrayElemAt: [{ $slice: ["$messages", -1] }, 0] },
+        },
+      },
+    ]);
+
+    res.json(chatList);
+  } catch (error) {
+    console.error("Error fetching chat list:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+module.exports = { sendMessageNewBot, getChatList };
