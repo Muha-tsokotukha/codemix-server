@@ -7,6 +7,12 @@ const config = {
 };
 const openai = new OpenAi(config);
 
+function generateChatId() {
+  const timestamp = Date.now().toString(36);
+  const randomString = Math.random().toString(36).substr(2, 5);
+  return `${timestamp}-${randomString}`;
+}
+
 async function sendMessageNewBot(req, res) {
   const { message, userId, userName } = req.body;
 
@@ -19,7 +25,10 @@ async function sendMessageNewBot(req, res) {
     const newChat = new Chat({
       title: message.slice(0, 20),
       id: completion.id,
-      participants: { id: userId, name: userName },
+      participants: [
+        { id: userId, name: userName },
+        { id: "AI", name: "BOT" },
+      ],
       messages: [
         { text: message, senderId: userId },
         { text: completion.choices[0].message.content, senderId: "AI" },
@@ -43,13 +52,16 @@ async function getChatList(req, res) {
     const userId = req.query.userId;
 
     const chatList = await Chat.aggregate([
-      { $unwind: "$participants" },
-      { $match: { "participants.id": userId } },
+      {
+        $match: {
+          "participants.id": userId,
+        },
+      },
       {
         $project: {
           title: 1,
           id: 1,
-          userId: 1,
+          participants: 1,
           lastMessage: { $arrayElemAt: [{ $slice: ["$messages", -1] }, 0] },
         },
       },
@@ -113,9 +125,40 @@ async function appendMessageToChat(req, res) {
   }
 }
 
+async function sendMessageOrAppendToChat(data) {
+  try {
+    const messageContent = data.message;
+    const sender = data.sender;
+    const receiver = data.receiver;
+    const chatId = data.chatId;
+
+    let existingChat = await Chat.findOne({ id: chatId });
+
+    if (!existingChat) {
+      existingChat = new Chat({
+        title: receiver.name,
+        id: generateChatId(),
+        participants: [
+          { id: sender.id, name: sender.name },
+          { id: receiver.id, name: receiver.name },
+        ],
+        messages: [],
+      });
+    }
+    existingChat.messages.push({ text: messageContent, senderId: sender.id });
+
+    await existingChat.save();
+
+    return existingChat.id;
+  } catch (error) {
+    console.error("Error parsing JSON:", error);
+  }
+}
+
 module.exports = {
   sendMessageNewBot,
   getChatList,
   getChatMessages,
   appendMessageToChat,
+  sendMessageOrAppendToChat,
 };
