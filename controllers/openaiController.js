@@ -1,6 +1,6 @@
 const OpenAi = require("openai");
 require("dotenv").config();
-const ChatBot = require("../models/Chat");
+const Chat = require("../models/Chat");
 
 const config = {
   apiKey: process.env.OPENAI_KEY,
@@ -8,7 +8,7 @@ const config = {
 const openai = new OpenAi(config);
 
 async function sendMessageNewBot(req, res) {
-  const { message, userId } = req.body;
+  const { message, userId, userName } = req.body;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -16,10 +16,10 @@ async function sendMessageNewBot(req, res) {
       messages: [{ role: "user", content: message }],
     });
 
-    const newChat = new ChatBot({
+    const newChat = new Chat({
       title: message.slice(0, 20),
       id: completion.id,
-      userId: userId,
+      participants: { id: userId, name: userName },
       messages: [
         { text: message, senderId: userId },
         { text: completion.choices[0].message.content, senderId: "AI" },
@@ -41,8 +41,10 @@ async function sendMessageNewBot(req, res) {
 async function getChatList(req, res) {
   try {
     const userId = req.query.userId;
-    const chatList = await ChatBot.aggregate([
-      { $match: { userId } },
+
+    const chatList = await Chat.aggregate([
+      { $unwind: "$participants" },
+      { $match: { "participants.id": userId } },
       {
         $project: {
           title: 1,
@@ -64,7 +66,7 @@ async function getChatMessages(req, res) {
   try {
     const chatId = req.params.chatId;
 
-    const chat = await ChatBot.findOne({ id: chatId });
+    const chat = await Chat.findOne({ id: chatId });
 
     if (!chat) return res.status(404).json({ error: "Chat not found" });
 
@@ -82,7 +84,7 @@ async function appendMessageToChat(req, res) {
   const { chatId } = req.params;
 
   try {
-    const existingChat = await ChatBot.findOne({ id: chatId });
+    const existingChat = await Chat.findOne({ id: chatId });
 
     if (!existingChat) {
       return res.status(404).json({ error: "Chat not found" });
