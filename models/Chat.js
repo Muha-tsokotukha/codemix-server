@@ -15,7 +15,7 @@ const messageSchema = new mongoose.Schema({
   },
 });
 
-const chatBotSchema = new mongoose.Schema({
+const chatSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
@@ -24,13 +24,18 @@ const chatBotSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  userId: {
-    type: String,
-    required: true,
-  },
+  participants: [
+    {
+      id: { type: String, required: true },
+      name: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
   messages: [messageSchema],
 });
 
-const ChatBot = mongoose.model("chat", chatBotSchema);
+const Chat = mongoose.model("chat", chatSchema);
 
-module.exports = ChatBot;
+module.exports = Chat;

@@ -1,14 +1,20 @@
 const OpenAi = require("openai");
 require("dotenv").config();
-const ChatBot = require("../models/Chat");
+const Chat = require("../models/Chat");
 
 const config = {
   apiKey: process.env.OPENAI_KEY,
 };
 const openai = new OpenAi(config);
 
+function generateChatId() {
+  const timestamp = Date.now().toString(36);
+  const randomString = Math.random().toString(36).substr(2, 5);
+  return `${timestamp}-${randomString}`;
+}
+
 async function sendMessageNewBot(req, res) {
-  const { message, userId } = req.body;
+  const { message, userId, userName } = req.body;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -16,10 +22,13 @@ async function sendMessageNewBot(req, res) {
       messages: [{ role: "user", content: message }],
     });
 
-    const newChat = new ChatBot({
+    const newChat = new Chat({
       title: message.slice(0, 20),
       id: completion.id,
-      userId: userId,
+      participants: [
+        { id: userId, name: userName },
+        { id: "AI", name: "BOT" },
+      ],
       messages: [
         { text: message, senderId: userId },
         { text: completion.choices[0].message.content, senderId: "AI" },
@@ -41,13 +50,18 @@ async function sendMessageNewBot(req, res) {
 async function getChatList(req, res) {
   try {
     const userId = req.query.userId;
-    const chatList = await ChatBot.aggregate([
-      { $match: { userId } },
+
+    const chatList = await Chat.aggregate([
+      {
+        $match: {
+          "participants.id": userId,
+        },
+      },
       {
         $project: {
           title: 1,
           id: 1,
-          userId: 1,
+          participants: 1,
           lastMessage: { $arrayElemAt: [{ $slice: ["$messages", -1] }, 0] },
         },
       },
@@ -64,7 +78,7 @@ async function getChatMessages(req, res) {
   try {
     const chatId = req.params.chatId;
 
-    const chat = await ChatBot.findOne({ id: chatId });
+    const chat = await Chat.findOne({ id: chatId });
 
     if (!chat) return res.status(404).json({ error: "Chat not found" });
 
@@ -82,7 +96,7 @@ async function appendMessageToChat(req, res) {
   const { chatId } = req.params;
 
   try {
-    const existingChat = await ChatBot.findOne({ id: chatId });
+    const existingChat = await Chat.findOne({ id: chatId });
 
     if (!existingChat) {
       return res.status(404).json({ error: "Chat not found" });
@@ -111,9 +125,40 @@ async function appendMessageToChat(req, res) {
   }
 }
 
+async function sendMessageOrAppendToChat(data) {
+  try {
+    const messageContent = data.message;
+    const sender = data.sender;
+    const receiver = data.receiver;
+    const chatId = data.chatId;
+
+    let existingChat = await Chat.findOne({ id: chatId });
+
+    if (!existingChat) {
+      existingChat = new Chat({
+        title: receiver.name,
+        id: generateChatId(),
+        participants: [
+          { id: sender.id, name: sender.name },
+          { id: receiver.id, name: receiver.name },
+        ],
+        messages: [],
+      });
+    }
+    existingChat.messages.push({ text: messageContent, senderId: sender.id });
+
+    await existingChat.save();
+
+    return existingChat.id;
+  } catch (error) {
+    console.error("Error parsing JSON:", error);
+  }
+}
+
 module.exports = {
   sendMessageNewBot,
   getChatList,
   getChatMessages,
   appendMessageToChat,
+  sendMessageOrAppendToChat,
 };
